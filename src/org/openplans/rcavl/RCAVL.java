@@ -14,7 +14,9 @@
 package org.openplans.rcavl;
 
 import java.io.IOException;
+import java.text.SimpleDateFormat;
 import java.util.Arrays;
+import java.util.Date;
 
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
@@ -241,5 +243,13 @@ public class RCAVL extends Activity {
 	public void onDestroy() {
 		stopService(new Intent(GpsService.class.getName()));
 		super.onDestroy();
+	}
+
+	public void ping() {
+		TextView pingField = (TextView) findViewById(R.id.lastPingLabel);
+		if (pingField != null) {
+			String now = new SimpleDateFormat("HH:mm:ss").format(new Date());
+			pingField.setText("Last contacted server " + now);
+		}
 	}
 }

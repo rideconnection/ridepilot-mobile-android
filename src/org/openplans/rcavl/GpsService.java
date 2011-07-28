@@ -17,6 +17,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
 import org.apache.http.NameValuePair;
 import org.apache.http.client.ClientProtocolException;
@@ -25,6 +26,10 @@ import org.apache.http.client.entity.UrlEncodedFormEntity;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.impl.client.DefaultHttpClient;
 import org.apache.http.message.BasicNameValuePair;
+import org.apache.http.util.EntityUtils;
+import org.json.JSONException;
+import org.json.JSONObject;
+import org.json.JSONTokener;
 
 import android.app.Service;
 import android.content.Context;
@@ -32,6 +37,7 @@ import android.content.Intent;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
+import android.os.AsyncTask;
 import android.os.Binder;
 import android.os.Bundle;
 import android.os.IBinder;
@@ -87,8 +93,8 @@ public class GpsService extends Service {
 			this.url = url;
 			this.email = email;
 			this.password = password;
-			this.status = "active";
 			active = true;
+			setStatus("active");
 		}
 
 		public void stop() {
@@ -105,33 +111,65 @@ public class GpsService extends Service {
 		}
 
 		private void ping(Location location) {
-			HttpClient client = new DefaultHttpClient();
-			HttpPost request = new HttpPost(url);
+			new PingTask(status).execute(location);
+		}
 
-			try {
-				List<NameValuePair> nameValuePairs = new ArrayList<NameValuePair>(
-						4);
-				nameValuePairs.add(new BasicNameValuePair("email", email));
-				nameValuePairs
-						.add(new BasicNameValuePair("password", password));
+		private class PingTask extends AsyncTask<Location, Void, Void> {
+			private String status;
 
-				if (location != null) {
-					nameValuePairs.add(new BasicNameValuePair("lat",
-							Double.toString(location.getLatitude())));
-					nameValuePairs.add(new BasicNameValuePair("lng",
-							Double.toString(location.getLongitude())));
+			public PingTask(String status) {
+				this.status = status;
+			}
+
+			protected Void doInBackground(Location... params) {
+				Location location = params[0];
+				while (true) {
+					HttpClient client = new DefaultHttpClient();
+					HttpPost request = new HttpPost(url);
+					try {
+						List<NameValuePair> nameValuePairs = new ArrayList<NameValuePair>(
+								4);
+						nameValuePairs.add(new BasicNameValuePair("email",
+								email));
+						nameValuePairs.add(new BasicNameValuePair("password",
+								password));
+
+						if (location != null) {
+							nameValuePairs.add(new BasicNameValuePair("lat",
+									Double.toString(location.getLatitude())));
+							nameValuePairs.add(new BasicNameValuePair("lng",
+									Double.toString(location.getLongitude())));
+						}
+						nameValuePairs.add(new BasicNameValuePair("status",
+								status));
+						request.setEntity(new UrlEncodedFormEntity(
+								nameValuePairs));
+
+						HttpResponse response = client.execute(request);
+						/* would be nice to do something with the result here */
+						if (response.getStatusLine().getStatusCode() == 200) {
+							HttpEntity entity = response.getEntity();
+							String json = EntityUtils.toString(entity);
+							JSONTokener tokener = new JSONTokener(json);
+							JSONObject data = (JSONObject) tokener.nextValue();
+							if (!data.has("error")) {
+								break; //success!
+							}
+						}
+					} catch (ClientProtocolException e) {
+						Log.e(TAG, "exception sending ping " + e);
+					} catch (IOException e) {
+						Log.e(TAG, "exception sending ping " + e);
+					} catch (JSONException e) {
+						Log.e(TAG, "bad json from server " + e);
+					}
 				}
-				nameValuePairs.add(new BasicNameValuePair("status", status));
-				request.setEntity(new UrlEncodedFormEntity(nameValuePairs));
-
-				@SuppressWarnings("unused")
-				HttpResponse response = client.execute(request);
-				/* would be nice to do something with the result here */
-
-			} catch (ClientProtocolException e) {
-				Log.e(TAG, "exception sending ping " + e);
-			} catch (IOException e) {
-				Log.e(TAG, "exception sending ping " + e);
+				return null;
+			}
+			protected void onPostExecute(Void url) {
+				if (activity != null) {
+					activity.ping();
+				}
 			}
 		}
 
