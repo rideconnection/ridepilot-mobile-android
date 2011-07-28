@@ -116,9 +116,9 @@ public class GpsService extends Service {
 						.add(new BasicNameValuePair("password", password));
 
 				if (location != null) {
-					nameValuePairs.add(new BasicNameValuePair("latitude",
+					nameValuePairs.add(new BasicNameValuePair("lat",
 							Double.toString(location.getLatitude())));
-					nameValuePairs.add(new BasicNameValuePair("latitude",
+					nameValuePairs.add(new BasicNameValuePair("lng",
 							Double.toString(location.getLongitude())));
 				}
 				nameValuePairs.add(new BasicNameValuePair("status", status));
