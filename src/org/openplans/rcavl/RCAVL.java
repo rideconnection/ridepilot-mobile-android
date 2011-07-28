@@ -175,7 +175,7 @@ public class RCAVL extends Activity {
 		editor.commit();
 
 		toast("Logged in");
-		switchToRunning();
+		switchToRunning(userEmail);
 	}
 
 	private void switchToLogin() {
@@ -208,8 +208,12 @@ public class RCAVL extends Activity {
 		});
 	}
 
-	private void switchToRunning() {
+	private void switchToRunning(String email) {
 		setContentView(R.layout.running);
+
+		TextView userField = (TextView) findViewById(R.id.loggedInAsLabel);
+		userField.setText("Logged in as " + email);
+
 		final Button breakButton = (Button) findViewById(R.id.breakButton);
 		breakButton.setOnClickListener(new OnClickListener() {
 
