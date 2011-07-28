@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="password">Password</string>
+    <string name="email_address">Email address</string>
+    <string name="app_name">Ridepilot Mobile</string>
+    <string name="login">Log in</string>
+    <string name="logout">Log out</string>
+    <string name="take_a_break">Take a break</string>
+    <string name="return_from_break">Return from break</string>
+</resources>

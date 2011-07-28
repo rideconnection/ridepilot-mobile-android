@@ -1,0 +1,7 @@
+*~
+/bin
+*.out.xml
+/gen
+.classpath
+.project
+.settings
