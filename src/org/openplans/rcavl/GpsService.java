@@ -129,18 +129,18 @@ public class GpsService extends Service {
 					try {
 						List<NameValuePair> nameValuePairs = new ArrayList<NameValuePair>(
 								4);
-						nameValuePairs.add(new BasicNameValuePair("email",
+						nameValuePairs.add(new BasicNameValuePair("user[email]",
 								email));
-						nameValuePairs.add(new BasicNameValuePair("password",
+						nameValuePairs.add(new BasicNameValuePair("user[password]",
 								password));
 
 						if (location != null) {
-							nameValuePairs.add(new BasicNameValuePair("lat",
+							nameValuePairs.add(new BasicNameValuePair("device_pool_driver[lat]",
 									Double.toString(location.getLatitude())));
-							nameValuePairs.add(new BasicNameValuePair("lng",
+							nameValuePairs.add(new BasicNameValuePair("device_pool_driver[lng]",
 									Double.toString(location.getLongitude())));
 						}
-						nameValuePairs.add(new BasicNameValuePair("status",
+						nameValuePairs.add(new BasicNameValuePair("device_pool_driver[status]",
 								status));
 						request.setEntity(new UrlEncodedFormEntity(
 								nameValuePairs));
@@ -152,7 +152,7 @@ public class GpsService extends Service {
 							String json = EntityUtils.toString(entity);
 							JSONTokener tokener = new JSONTokener(json);
 							JSONObject data = (JSONObject) tokener.nextValue();
-							if (!data.has("error")) {
+							if (data.has("status")) {
 								break; //success!
 							}
 						}

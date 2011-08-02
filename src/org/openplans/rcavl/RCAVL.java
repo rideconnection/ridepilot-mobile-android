@@ -92,7 +92,7 @@ public class RCAVL extends Activity {
 				String json = EntityUtils.toString(entity);
 				JSONTokener tokener = new JSONTokener(json);
 				JSONObject data = (JSONObject) tokener.nextValue();
-				return (String) data.get("url");
+				return (String) data.get("resource_url");
 			} catch (ClientProtocolException e) {
 				Log.e(TAG, "exception logging in" + e);
 			} catch (IOException e) {
