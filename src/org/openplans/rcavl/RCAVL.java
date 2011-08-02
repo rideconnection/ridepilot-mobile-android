@@ -15,16 +15,20 @@ package org.openplans.rcavl;
 
 import java.io.IOException;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
+import java.util.List;
 
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
+import org.apache.http.NameValuePair;
 import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.HttpClient;
-import org.apache.http.client.methods.HttpGet;
+import org.apache.http.client.entity.UrlEncodedFormEntity;
+import org.apache.http.client.methods.HttpPost;
 import org.apache.http.impl.client.DefaultHttpClient;
-import org.apache.http.params.BasicHttpParams;
+import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.util.EntityUtils;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -77,16 +81,19 @@ public class RCAVL extends Activity {
 			// the ping URL
 
 			HttpClient client = new DefaultHttpClient();
-			HttpGet request = new HttpGet(API_REQUEST_URL);
+			HttpPost request = new HttpPost(API_REQUEST_URL);
 
 			try {
+				List<NameValuePair> nameValuePairs = new ArrayList<NameValuePair>(
+						2);
 				String email = emailField.getText().toString();
 				String password = passwordField.getText().toString();
-				BasicHttpParams httpparams = new BasicHttpParams();
-				httpparams.setParameter("email", email);
-				httpparams.setParameter("password", password);
+				
+				nameValuePairs.add(new BasicNameValuePair("user[email]", email));
+				nameValuePairs.add(new BasicNameValuePair("user[password]", password));
 
-				request.setParams(httpparams);
+				request.setEntity(new UrlEncodedFormEntity(
+						nameValuePairs));
 				HttpResponse response = client.execute(request);
 				HttpEntity entity = response.getEntity();
 				String json = EntityUtils.toString(entity);
@@ -95,10 +102,13 @@ public class RCAVL extends Activity {
 				return (String) data.get("resource_url");
 			} catch (ClientProtocolException e) {
 				Log.e(TAG, "exception logging in" + e);
+				toast("Error logging in.  Try again.");
 			} catch (IOException e) {
 				Log.e(TAG, "exception logging in" + e);
+				toast("Error logging in.  Try again.");
 			} catch (JSONException e) {
 				Log.e(TAG, "exception logging in" + e);
+				toast("Error logging in.  Check your password and try again.");
 			}
 			return null;
 		}
@@ -233,7 +243,7 @@ public class RCAVL extends Activity {
 		final Button logoutButton = (Button) findViewById(R.id.logoutButton);
 		logoutButton.setOnClickListener(new OnClickListener() {
 			public void onClick(View v) {
-				gpsService.setStatus("logged_out", false);
+				gpsService.setStatus("inactive", false);
 				switchToLogin();
 			}
 		});

@@ -128,7 +128,7 @@ public class GpsService extends Service {
 					HttpPost request = new HttpPost(url);
 					try {
 						List<NameValuePair> nameValuePairs = new ArrayList<NameValuePair>(
-								4);
+								5);
 						nameValuePairs.add(new BasicNameValuePair("user[email]",
 								email));
 						nameValuePairs.add(new BasicNameValuePair("user[password]",
