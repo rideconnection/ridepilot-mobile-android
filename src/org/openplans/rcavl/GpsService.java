@@ -24,7 +24,6 @@ import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.entity.UrlEncodedFormEntity;
 import org.apache.http.client.methods.HttpPost;
-import org.apache.http.impl.client.DefaultHttpClient;
 import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.util.EntityUtils;
 import org.json.JSONException;
@@ -124,7 +123,7 @@ public class GpsService extends Service {
 			protected Void doInBackground(Location... params) {
 				Location location = params[0];
 				while (true) {
-					HttpClient client = new DefaultHttpClient();
+					HttpClient client = HttpUtils.getNewHttpClient();
 					HttpPost request = new HttpPost(url);
 					try {
 						List<NameValuePair> nameValuePairs = new ArrayList<NameValuePair>(

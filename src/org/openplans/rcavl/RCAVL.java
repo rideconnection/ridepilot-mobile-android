@@ -27,12 +27,12 @@ import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.entity.UrlEncodedFormEntity;
 import org.apache.http.client.methods.HttpPost;
-import org.apache.http.impl.client.DefaultHttpClient;
 import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.util.EntityUtils;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.json.JSONTokener;
+import org.openplans.rcavl.ConfigDialog.Configured;
 import org.openplans.rcavl.GpsService.LocalBinder;
 
 import android.app.Activity;
@@ -55,10 +55,11 @@ import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
-public class RCAVL extends Activity {
+public class RCAVL extends Activity implements Configured {
 	String TAG = RCAVL.class.toString();
 
-	public static final String API_REQUEST_URL = "http://novalis.org/api.json";
+	public String apiRequestUrl = "https://apps.rideconnection.org/ridepilot";
+
 	private ProgressBar spinner;
 	public GpsService gpsService;
 	private AutoCompleteTextView emailField;
@@ -80,26 +81,37 @@ public class RCAVL extends Activity {
 			// make login request, which really is just a GET request for
 			// the ping URL
 
-			HttpClient client = new DefaultHttpClient();
-			HttpPost request = new HttpPost(API_REQUEST_URL);
+			// HttpClient client = new DefaultHttpClient();
+			HttpClient client = HttpUtils.getNewHttpClient();
+			HttpPost request = new HttpPost(apiRequestUrl
+					+ "/device_pool_drivers.json");
 
 			try {
 				List<NameValuePair> nameValuePairs = new ArrayList<NameValuePair>(
 						2);
 				String email = emailField.getText().toString();
 				String password = passwordField.getText().toString();
-				
-				nameValuePairs.add(new BasicNameValuePair("user[email]", email));
-				nameValuePairs.add(new BasicNameValuePair("user[password]", password));
 
-				request.setEntity(new UrlEncodedFormEntity(
-						nameValuePairs));
+				nameValuePairs
+						.add(new BasicNameValuePair("user[email]", email));
+				nameValuePairs.add(new BasicNameValuePair("user[password]",
+						password));
+				request.setEntity(new UrlEncodedFormEntity(nameValuePairs));
 				HttpResponse response = client.execute(request);
 				HttpEntity entity = response.getEntity();
 				String json = EntityUtils.toString(entity);
+				if (!json.startsWith("{")) {
+					// not really json
+					toast("Got an unexpected response from the server.  Are you sure you have the URL right?");
+					return null;
+				}
 				JSONTokener tokener = new JSONTokener(json);
 				JSONObject data = (JSONObject) tokener.nextValue();
-				return (String) data.get("resource_url");
+				Object url = data.get("resource_url");
+				if (url instanceof String) {
+					return (String) url;
+				}
+				toast("Bad response from server: " + url);
 			} catch (ClientProtocolException e) {
 				Log.e(TAG, "exception logging in" + e);
 				toast("Error logging in.  Try again.");
@@ -109,6 +121,9 @@ public class RCAVL extends Activity {
 			} catch (JSONException e) {
 				Log.e(TAG, "exception logging in" + e);
 				toast("Error logging in.  Check your password and try again.");
+			} catch (Exception e) {
+				Log.e(TAG, "exception logging in" + e);
+				toast("Error logging in.  " + e);
 			}
 			return null;
 		}
@@ -119,7 +134,6 @@ public class RCAVL extends Activity {
 		 */
 		protected void onPostExecute(String url) {
 			if (url == null) {
-				toast("failed to log in for some reason");
 				return;
 			}
 			loggedIn();
@@ -218,6 +232,19 @@ public class RCAVL extends Activity {
 				new LoginTask().execute();
 			}
 		});
+
+		View configButton = findViewById(R.id.configButton);
+		configButton.setOnClickListener(new OnClickListener() {
+
+			public void onClick(View v) {
+				ConfigDialog dialog = new ConfigDialog(RCAVL.this);
+				dialog.setConfigured(RCAVL.this);
+				dialog.show();
+			}
+		});
+
+		apiRequestUrl = preferences.getString("apiRequestUrl", apiRequestUrl);
+
 	}
 
 	private void switchToRunning(String email) {
@@ -261,5 +288,18 @@ public class RCAVL extends Activity {
 			String now = new SimpleDateFormat("HH:mm:ss").format(new Date());
 			pingField.setText("Last contacted server " + now);
 		}
+	}
+
+	/* configuration dialog callbacks */
+	public String getConfig() {
+		return apiRequestUrl;
+	}
+
+	public void setConfig(String serverUrl) {
+		apiRequestUrl = serverUrl;
+		SharedPreferences preferences = getPreferences(MODE_PRIVATE);
+		Editor editor = preferences.edit();
+		editor.putString("apiRequestUrl", apiRequestUrl);
+		editor.commit();
 	}
 }

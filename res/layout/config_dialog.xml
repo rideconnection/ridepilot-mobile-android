@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+              android:id="@+id/configDialog"
+              android:orientation="vertical"
+              android:layout_width="wrap_content"
+              android:layout_height="wrap_content"
+              android:padding="10dp"
+              >
+    <TextView android:id="@+id/serverUrlLabel"
+              android:layout_width="wrap_content"
+              android:layout_height="wrap_content"
+              android:text="@string/server_url"
+              />
+    <EditText android:id="@+id/serverUrlField"
+              android:layout_width="250dip"
+              android:layout_height="fill_parent"
+              android:text="@string/server_url"
+              android:inputType="textNoSuggestions"
+              />
+    <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+              android:orientation="horizontal"
+              android:layout_width="wrap_content"
+              android:layout_height="wrap_content"
+              android:padding="10dp"
+              >
+        <Button
+              android:id="@+id/saveButton"
+              android:layout_width="wrap_content"
+              android:layout_height="wrap_content"
+              android:text="@string/save"
+              />
+        <Button
+              android:id="@+id/cancelButton"
+              android:layout_width="wrap_content"
+              android:layout_height="wrap_content"
+              android:text="@string/cancel"
+              />
+     </LinearLayout>
+</LinearLayout>
