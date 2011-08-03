@@ -14,7 +14,9 @@
 package org.openplans.rcavl;
 
 import java.io.IOException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 
 import org.apache.http.HttpEntity;
@@ -88,6 +90,9 @@ public class GpsService extends Service {
 		private Location lastLocation;
 		private LocationManager locationManager;
 
+		private long lastPing = 0;
+		private String lastPingStatus;
+
 		public GpsServiceThread(String url, String email, String password) {
 			this.url = url;
 			this.email = email;
@@ -106,7 +111,12 @@ public class GpsService extends Service {
 				return;
 			}
 			lastLocation = location;
-			ping(location);
+			long now = System.currentTimeMillis();
+			if (now - lastPing > 1000 || lastPingStatus != status) {
+				ping(location);
+				lastPing = now;
+				lastPingStatus = status;
+			}
 		}
 
 		private void ping(Location location) {
@@ -114,46 +124,62 @@ public class GpsService extends Service {
 		}
 
 		private class PingTask extends AsyncTask<Location, Void, Void> {
+			private static final int MAX_RETRIES = 3;
+
 			private String status;
+
+			private final SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+
+			private String localDate;
 
 			public PingTask(String status) {
 				this.status = status;
+				localDate = dateFormat.format(new Date());
 			}
 
 			protected Void doInBackground(Location... params) {
 				Location location = params[0];
-				while (true) {
+				for (int i = 0; i < MAX_RETRIES; ++i) {
 					HttpClient client = HttpUtils.getNewHttpClient();
 					HttpPost request = new HttpPost(url);
 					try {
 						List<NameValuePair> nameValuePairs = new ArrayList<NameValuePair>(
-								5);
-						nameValuePairs.add(new BasicNameValuePair("user[email]",
-								email));
-						nameValuePairs.add(new BasicNameValuePair("user[password]",
-								password));
+								6);
+						nameValuePairs.add(new BasicNameValuePair(
+								"user[email]", email));
+						nameValuePairs.add(new BasicNameValuePair(
+								"user[password]", password));
 
 						if (location != null) {
-							nameValuePairs.add(new BasicNameValuePair("device_pool_driver[lat]",
+							nameValuePairs.add(new BasicNameValuePair(
+									"device_pool_driver[lat]",
 									Double.toString(location.getLatitude())));
-							nameValuePairs.add(new BasicNameValuePair("device_pool_driver[lng]",
+							nameValuePairs.add(new BasicNameValuePair(
+									"device_pool_driver[lng]",
 									Double.toString(location.getLongitude())));
 						}
-						nameValuePairs.add(new BasicNameValuePair("device_pool_driver[status]",
+						nameValuePairs.add(new BasicNameValuePair(
+								"device_pool_driver[status]",
 								status));
+
+						nameValuePairs.add(new BasicNameValuePair(
+								"device_pool_driver[posted_at]", localDate));
+
 						request.setEntity(new UrlEncodedFormEntity(
 								nameValuePairs));
 
 						HttpResponse response = client.execute(request);
-						/* would be nice to do something with the result here */
+
 						if (response.getStatusLine().getStatusCode() == 200) {
 							HttpEntity entity = response.getEntity();
 							String json = EntityUtils.toString(entity);
 							JSONTokener tokener = new JSONTokener(json);
 							JSONObject data = (JSONObject) tokener.nextValue();
-							if (data.has("status")) {
-								break; //success!
+							if (data.has("device_pool_driver")) {
+								return null; //success!
 							}
+							Log.e(TAG, "data was " + data);
+							Log.e(TAG, "json was " + json);
 						}
 					} catch (ClientProtocolException e) {
 						Log.e(TAG, "exception sending ping " + e);
@@ -161,8 +187,11 @@ public class GpsService extends Service {
 						Log.e(TAG, "exception sending ping " + e);
 					} catch (JSONException e) {
 						Log.e(TAG, "bad json from server " + e);
+					} catch (Exception e) {
+						Log.e(TAG, "some other problem " + e);
 					}
 				}
+				Log.e(TAG, "ran out of retries contacting server");
 				return null;
 			}
 			protected void onPostExecute(Void url) {
@@ -198,7 +227,7 @@ public class GpsService extends Service {
 
 			locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
 			locationManager.requestLocationUpdates(
-					LocationManager.GPS_PROVIDER, 0, 0, this);
+					LocationManager.GPS_PROVIDER, 1000, 10, this);
 			Looper.loop();
 			Looper.myLooper().quit();
 		}
