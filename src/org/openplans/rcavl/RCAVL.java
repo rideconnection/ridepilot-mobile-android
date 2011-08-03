@@ -134,6 +134,8 @@ public class RCAVL extends Activity implements Configured {
 		 */
 		protected void onPostExecute(String url) {
 			if (url == null) {
+				spinner.setIndeterminate(false);
+				spinner.setVisibility(View.INVISIBLE);
 				return;
 			}
 			loggedIn();
