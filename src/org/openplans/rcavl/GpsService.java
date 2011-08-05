@@ -202,15 +202,15 @@ public class GpsService extends Service {
 		}
 
 		public void onProviderDisabled(String provider) {
-			toast("provider disabled " + provider);
+			Log.d(TAG, "provider disabled " + provider);
 		}
 
 		public void onProviderEnabled(String provider) {
-			toast("provider enabled " + provider);
+			Log.d(TAG, "provider enabled " + provider);
 		}
 
 		public void onStatusChanged(String provider, int status, Bundle extras) {
-			toast("on status changed " + provider + " status = " + status);
+			Log.d(TAG, "on status changed " + provider + " status = " + status);
 		}
 
 		public void toast(String message) {
