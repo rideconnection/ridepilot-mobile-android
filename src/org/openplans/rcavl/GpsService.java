@@ -113,18 +113,22 @@ public class GpsService extends Service {
 			lastLocation = location;
 			long now = System.currentTimeMillis();
 			if (now - lastPing > 1000 || lastPingStatus != status) {
-				ping(location);
+				ping(location, false);
 				lastPing = now;
 				lastPingStatus = status;
 			}
 		}
 
-		private void ping(Location location) {
-			new PingTask(status).execute(location);
+		private void ping(Location location, boolean keepTrying) {
+			new PingTask(status, keepTrying).execute(location);
 		}
 
 		private class PingTask extends AsyncTask<Location, Void, Void> {
 			private static final int MAX_RETRIES = 3;
+
+			private static final long SHORT_RETRY_TIME = 1000 * 10; //10 seconds
+
+			private static final long LONG_RETRY_TIME = 1000 * 60 * 3; // 3 minutes
 
 			private String status;
 
@@ -132,14 +136,17 @@ public class GpsService extends Service {
 
 			private String localDate;
 
-			public PingTask(String status) {
+			private boolean keepTrying;
+
+			public PingTask(String status, boolean keepTrying) {
 				this.status = status;
+				this.keepTrying = keepTrying;
 				localDate = dateFormat.format(new Date());
 			}
 
 			protected Void doInBackground(Location... params) {
 				Location location = params[0];
-				for (int i = 0; i < MAX_RETRIES; ++i) {
+				for (int i = 0; i < MAX_RETRIES || keepTrying; ++i) {
 					HttpClient client = HttpUtils.getNewHttpClient();
 					HttpPost request = new HttpPost(url);
 					try {
@@ -190,10 +197,20 @@ public class GpsService extends Service {
 					} catch (Exception e) {
 						Log.e(TAG, "some other problem " + e);
 					}
+					try {
+						if (i >= MAX_RETRIES && keepTrying) {
+							Thread.sleep(LONG_RETRY_TIME);
+						} else {
+							Thread.sleep(SHORT_RETRY_TIME);
+						}
+					} catch (InterruptedException e) {
+						Thread.currentThread().interrupt();
+					}
 				}
 				Log.e(TAG, "ran out of retries contacting server");
 				return null;
 			}
+
 			protected void onPostExecute(Void url) {
 				if (activity != null) {
 					activity.ping();
@@ -234,7 +251,7 @@ public class GpsService extends Service {
 
 		public void setStatus(String status) {
 			this.status = status;
-			ping(lastLocation);
+			ping(lastLocation, true);
 		}
 
 		public String getStatus() {
