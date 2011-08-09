@@ -15,9 +15,45 @@
               android:layout_width="250dip"
               android:layout_height="fill_parent"
               android:text="@string/server_url"
-              android:inputType="textNoSuggestions"
+              android:inputType="textNoSuggestions|textFilter"
               />
-    <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+	<TextView android:id="@+id/frequencyLabel"
+              android:layout_width="wrap_content"
+              android:layout_height="wrap_content"
+              android:text="@string/frequency"
+              />
+	<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+              android:orientation="horizontal"
+              android:layout_width="wrap_content"
+              android:layout_height="wrap_content"
+              android:padding="10dp" android:baselineAligned="true">              
+      <org.openplans.rcavl.NumberPicker
+              android:id="@+id/minutePicker"
+              android:orientation="vertical"
+              android:layout_width="wrap_content"
+              android:layout_height="wrap_content"
+              android:textSize = "12dp"
+              />
+       <TextView android:id="@+id/minutesLabel"
+              android:layout_width="wrap_content"
+              android:layout_height="fill_parent"
+              android:text="@string/minutes"
+              android:gravity="center_vertical"              
+              />
+       <org.openplans.rcavl.NumberPicker
+              android:id="@+id/secondPicker"
+              android:orientation="vertical"
+              android:layout_width="wrap_content"
+              android:layout_height="wrap_content"
+              />
+       <TextView android:id="@+id/secondsLabel"
+              android:layout_width="wrap_content"
+              android:layout_height="fill_parent"
+              android:text="@string/seconds"
+              android:gravity="center_vertical"
+              />
+     </LinearLayout>
+     <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
               android:orientation="horizontal"
               android:layout_width="wrap_content"
               android:layout_height="wrap_content"

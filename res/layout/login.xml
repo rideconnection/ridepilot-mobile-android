@@ -19,6 +19,7 @@ android:id="@+id/emailField"
 android:layout_width="fill_parent"
 android:layout_height="wrap_content"
 android:textSize="18sp"
+android:inputType="textNoSuggestions|textFilter"
 >
 </AutoCompleteTextView>
 <TextView

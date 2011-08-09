@@ -18,6 +18,8 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
@@ -32,13 +34,14 @@ import org.json.JSONException;
 import org.json.JSONObject;
 import org.json.JSONTokener;
 
+import android.app.Notification;
+import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
-import android.os.AsyncTask;
 import android.os.Binder;
 import android.os.Bundle;
 import android.os.IBinder;
@@ -50,11 +53,7 @@ public class GpsService extends Service {
 	private GpsServiceThread thread;
 	private LocalBinder binder = new LocalBinder();
 	private RCAVL activity;
-
-	@Override
-	public void onCreate() {
-		super.onCreate();
-	}
+	private int pingInterval;
 
 	@Override
 	public int onStartCommand(Intent intent, int flags, int startId) {
@@ -62,13 +61,28 @@ public class GpsService extends Service {
 		String url = intent.getStringExtra("pingUrl");
 		String email = intent.getStringExtra("email");
 		String password = intent.getStringExtra("password");
+		pingInterval = intent.getIntExtra("pingInterval", 60);
+		
+
+		Notification notification = new Notification(R.drawable.icon, "Ridepilot Mobile", System.currentTimeMillis());
+		Intent appIntent = new Intent(this, RCAVL.class);
+		
+		appIntent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP|Intent.FLAG_ACTIVITY_SINGLE_TOP);
+	
+		PendingIntent pi = PendingIntent.getActivity(this, 0, appIntent, 0);
+		
+		notification.setLatestEventInfo(this, "Ridepilot Mobile", "connected", pi);
+		notification.flags|=Notification.FLAG_NO_CLEAR;
+		startForeground(66786, notification);
+		
 		thread = new GpsServiceThread(url, email, password);
 		new Thread(thread).start();
-		return START_STICKY;
+		return START_REDELIVER_INTENT;
 	}
 
 	@Override
 	public void onDestroy() {
+		stopForeground(true);
 		thread.stop();
 	}
 
@@ -79,8 +93,15 @@ public class GpsService extends Service {
 			return GpsService.this;
 		}
 	}
-
+	
 	class GpsServiceThread implements LocationListener, Runnable {
+
+		private static final int MAX_RETRIES = 3;
+		private static final long SHORT_RETRY_TIME = 1000 * 10; //10 seconds
+		private static final long LONG_RETRY_TIME = 1000 * 60; // 1 minute
+
+		private final SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+
 		private final String TAG = GpsServiceThread.class.toString();
 		private String url;
 		private String password;
@@ -90,20 +111,31 @@ public class GpsService extends Service {
 		private Location lastLocation;
 		private LocationManager locationManager;
 
-		private long lastPing = 0;
-		private String lastPingStatus;
-
+		private ScheduledThreadPoolExecutor scheduledThreadPoolExecutor;
+		
+		private Runnable pingTask = new Runnable() {
+	        public void run() {
+	        	if (active) {
+	        		ping(false);
+	        	}
+	        }
+	    };
+	    private Runnable forcePingTask = new Runnable() {
+	        public void run() {
+	        	ping(true);
+	        }
+	    };
 		public GpsServiceThread(String url, String email, String password) {
 			this.url = url;
 			this.email = email;
 			this.password = password;
 			active = true;
+			scheduledThreadPoolExecutor = new ScheduledThreadPoolExecutor(1);
 			setStatus("active");
 		}
 
 		public void stop() {
-			Looper looper = Looper.myLooper();
-			looper.quit();
+			scheduledThreadPoolExecutor.shutdown();
 		}
 
 		public void onLocationChanged(Location location) {
@@ -111,111 +143,81 @@ public class GpsService extends Service {
 				return;
 			}
 			lastLocation = location;
-			long now = System.currentTimeMillis();
-			if (now - lastPing > 1000 || lastPingStatus != status) {
-				ping(location, false);
-				lastPing = now;
-				lastPingStatus = status;
-			}
 		}
 
-		private void ping(Location location, boolean keepTrying) {
-			new PingTask(status, keepTrying).execute(location);
-		}
+		private void ping(boolean keepTrying) {
+			String pingStatus = this.status;
 
-		private class PingTask extends AsyncTask<Location, Void, Void> {
-			private static final int MAX_RETRIES = 3;
+			String localDate;
+			
+			localDate = dateFormat.format(new Date());
 
-			private static final long SHORT_RETRY_TIME = 1000 * 10; //10 seconds
+			Location location = lastLocation;
+			for (int i = 0; i < MAX_RETRIES || keepTrying; ++i) {
+				HttpClient client = HttpUtils.getNewHttpClient();
+				HttpPost request = new HttpPost(url);
+				try {
+					List<NameValuePair> nameValuePairs = new ArrayList<NameValuePair>(6);
+					nameValuePairs.add(new BasicNameValuePair(
+							"user[email]", email));
+					nameValuePairs.add(new BasicNameValuePair(
+							"user[password]", password));
 
-			private static final long LONG_RETRY_TIME = 1000 * 60 * 3; // 3 minutes
-
-			private String status;
-
-			private final SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-
-			private String localDate;
-
-			private boolean keepTrying;
-
-			public PingTask(String status, boolean keepTrying) {
-				this.status = status;
-				this.keepTrying = keepTrying;
-				localDate = dateFormat.format(new Date());
-			}
-
-			protected Void doInBackground(Location... params) {
-				Location location = params[0];
-				for (int i = 0; i < MAX_RETRIES || keepTrying; ++i) {
-					HttpClient client = HttpUtils.getNewHttpClient();
-					HttpPost request = new HttpPost(url);
-					try {
-						List<NameValuePair> nameValuePairs = new ArrayList<NameValuePair>(
-								6);
+					if (location != null) {
 						nameValuePairs.add(new BasicNameValuePair(
-								"user[email]", email));
+								"device_pool_driver[lat]",
+								Double.toString(location.getLatitude())));
 						nameValuePairs.add(new BasicNameValuePair(
-								"user[password]", password));
-
-						if (location != null) {
-							nameValuePairs.add(new BasicNameValuePair(
-									"device_pool_driver[lat]",
-									Double.toString(location.getLatitude())));
-							nameValuePairs.add(new BasicNameValuePair(
-									"device_pool_driver[lng]",
-									Double.toString(location.getLongitude())));
-						}
-						nameValuePairs.add(new BasicNameValuePair(
-								"device_pool_driver[status]",
-								status));
-
-						nameValuePairs.add(new BasicNameValuePair(
-								"device_pool_driver[posted_at]", localDate));
-
-						request.setEntity(new UrlEncodedFormEntity(
-								nameValuePairs));
-
-						HttpResponse response = client.execute(request);
-
-						if (response.getStatusLine().getStatusCode() == 200) {
-							HttpEntity entity = response.getEntity();
-							String json = EntityUtils.toString(entity);
-							JSONTokener tokener = new JSONTokener(json);
-							JSONObject data = (JSONObject) tokener.nextValue();
-							if (data.has("device_pool_driver")) {
-								return null; //success!
-							}
-							Log.e(TAG, "data was " + data);
-							Log.e(TAG, "json was " + json);
-						}
-					} catch (ClientProtocolException e) {
-						Log.e(TAG, "exception sending ping " + e);
-					} catch (IOException e) {
-						Log.e(TAG, "exception sending ping " + e);
-					} catch (JSONException e) {
-						Log.e(TAG, "bad json from server " + e);
-					} catch (Exception e) {
-						Log.e(TAG, "some other problem " + e);
+								"device_pool_driver[lng]",
+								Double.toString(location.getLongitude())));
 					}
-					try {
-						if (i >= MAX_RETRIES && keepTrying) {
-							Thread.sleep(LONG_RETRY_TIME);
-						} else {
-							Thread.sleep(SHORT_RETRY_TIME);
+					nameValuePairs.add(new BasicNameValuePair(
+							"device_pool_driver[status]",
+							pingStatus));
+
+					nameValuePairs.add(new BasicNameValuePair(
+							"device_pool_driver[posted_at]", localDate));
+
+					request.setEntity(new UrlEncodedFormEntity(
+							nameValuePairs));
+
+					HttpResponse response = client.execute(request);
+
+					if (response.getStatusLine().getStatusCode() == 200) {
+						HttpEntity entity = response.getEntity();
+						String json = EntityUtils.toString(entity);
+						JSONTokener tokener = new JSONTokener(json);
+						JSONObject data = (JSONObject) tokener.nextValue();
+						if (data.has("device_pool_driver")) {
+							activity.ping();
+							return; //success!
 						}
-					} catch (InterruptedException e) {
-						Thread.currentThread().interrupt();
+						Log.e(TAG, "data was " + data);
+						Log.e(TAG, "json was " + json);
 					}
+				} catch (ClientProtocolException e) {
+					Log.e(TAG, "exception sending ping " + e);
+				} catch (IOException e) {
+					Log.e(TAG, "exception sending ping " + e);
+				} catch (JSONException e) {
+					Log.e(TAG, "bad json from server " + e);
+				} catch (Exception e) {
+					Log.e(TAG, "some other problem " + e);
 				}
-				Log.e(TAG, "ran out of retries contacting server");
-				return null;
-			}
-
-			protected void onPostExecute(Void url) {
-				if (activity != null) {
-					activity.ping();
+				try {
+					if (i >= MAX_RETRIES && keepTrying) {
+						Thread.sleep(LONG_RETRY_TIME);
+					} else {
+						Thread.sleep(SHORT_RETRY_TIME);
+					}
+				} catch (InterruptedException e) {
+					Thread.currentThread().interrupt();
 				}
 			}
+			Log.e(TAG, "ran out of retries contacting server");
+			activity.ping();
+			return;
+
 		}
 
 		public void onProviderDisabled(String provider) {
@@ -240,18 +242,23 @@ public class GpsService extends Service {
 		}
 
 		public void run() {
+			new Thread (new Runnable() {
+				public void run() {
+					scheduledThreadPoolExecutor.scheduleAtFixedRate(pingTask, 0, pingInterval, TimeUnit.SECONDS);
+				}
+			} ).start();
+			
 			Looper.prepare();
-
+			
 			locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
 			locationManager.requestLocationUpdates(
 					LocationManager.GPS_PROVIDER, 1000, 10, this);
-			Looper.loop();
-			Looper.myLooper().quit();
+
 		}
 
 		public void setStatus(String status) {
 			this.status = status;
-			ping(lastLocation, true);
+			scheduledThreadPoolExecutor.execute(forcePingTask);
 		}
 
 		public String getStatus() {

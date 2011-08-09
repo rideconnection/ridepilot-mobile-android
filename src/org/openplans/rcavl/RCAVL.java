@@ -42,6 +42,7 @@ import android.content.Intent;
 import android.content.ServiceConnection;
 import android.content.SharedPreferences;
 import android.content.SharedPreferences.Editor;
+import android.graphics.Rect;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.IBinder;
@@ -51,6 +52,7 @@ import android.view.View.OnClickListener;
 import android.widget.ArrayAdapter;
 import android.widget.AutoCompleteTextView;
 import android.widget.Button;
+import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -64,6 +66,8 @@ public class RCAVL extends Activity implements Configured {
 	public GpsService gpsService;
 	private AutoCompleteTextView emailField;
 	private TextView passwordField;
+
+	public int pingInterval = 60;
 
 	/** Called when the activity is first created. */
 	@Override
@@ -81,7 +85,6 @@ public class RCAVL extends Activity implements Configured {
 			// make login request, which really is just a GET request for
 			// the ping URL
 
-			// HttpClient client = new DefaultHttpClient();
 			HttpClient client = HttpUtils.getNewHttpClient();
 			HttpPost request = new HttpPost(apiRequestUrl
 					+ "/device_pool_drivers.json");
@@ -145,7 +148,10 @@ public class RCAVL extends Activity implements Configured {
 			String password = passwordField.getText().toString();
 			intent.putExtra("email", email);
 			intent.putExtra("password", password);
+			intent.putExtra("pingInterval", pingInterval);
+
 			startService(intent);
+
 			ServiceConnection serviceConnection = new GpsServiceConnection();
 			bindService(intent, serviceConnection, 0);
 		}
@@ -246,6 +252,7 @@ public class RCAVL extends Activity implements Configured {
 		});
 
 		apiRequestUrl = preferences.getString("apiRequestUrl", apiRequestUrl);
+		pingInterval = preferences.getInt("pingInterval", pingInterval);
 
 	}
 
@@ -256,6 +263,7 @@ public class RCAVL extends Activity implements Configured {
 		userField.setText("Logged in as " + email);
 
 		final Button breakButton = (Button) findViewById(R.id.breakButton);
+
 		breakButton.setOnClickListener(new OnClickListener() {
 
 			public void onClick(View v) {
@@ -280,7 +288,6 @@ public class RCAVL extends Activity implements Configured {
 
 	@Override
 	public void onDestroy() {
-		stopService(new Intent(GpsService.class.getName()));
 		super.onDestroy();
 	}
 
@@ -293,15 +300,22 @@ public class RCAVL extends Activity implements Configured {
 	}
 
 	/* configuration dialog callbacks */
-	public String getConfig() {
+	public String getServerUrl() {
 		return apiRequestUrl;
 	}
 
-	public void setConfig(String serverUrl) {
+	public int getPingInterval() {
+		return pingInterval;
+	}
+
+	public void setConfig(String serverUrl, int pingInterval) {
 		apiRequestUrl = serverUrl;
+		this.pingInterval = pingInterval;
 		SharedPreferences preferences = getPreferences(MODE_PRIVATE);
 		Editor editor = preferences.edit();
 		editor.putString("apiRequestUrl", apiRequestUrl);
+		editor.putInt("pingInterval", pingInterval);
 		editor.commit();
 	}
+
 }

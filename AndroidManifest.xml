@@ -15,7 +15,7 @@
 				<category android:name="android.intent.category.LAUNCHER" />
 			</intent-filter>
 		</activity>
-		<service android:name=".GpsService">
+		<service android:name="GpsService">
 			<intent-filter>
 				<action
 					android:name="org.openplans.rcavl.GpsService" />
