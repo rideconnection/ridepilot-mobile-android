@@ -96,7 +96,7 @@ public class GpsService extends Service {
 	
 	class GpsServiceThread implements LocationListener, Runnable {
 
-		private static final int MAX_RETRIES = 3;
+		private static final int MAX_RETRIES = 5;
 		private static final long SHORT_RETRY_TIME = 1000 * 10; //10 seconds
 		private static final long LONG_RETRY_TIME = 1000 * 60; // 1 minute
 
