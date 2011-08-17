@@ -50,6 +50,10 @@ import android.util.Log;
 
 public class GpsService extends Service {
 
+	public static final String INACTIVE = "inactive";
+	public static final String BREAK = "break";
+	public static final String ACTIVE = "active";
+	public static final String NOT_STARTED = "not started";
 	private GpsServiceThread thread;
 	private LocalBinder binder = new LocalBinder();
 	private RCAVL activity;
@@ -57,7 +61,10 @@ public class GpsService extends Service {
 
 	@Override
 	public int onStartCommand(Intent intent, int flags, int startId) {
+		return START_REDELIVER_INTENT;
+	}
 
+	public void realStart(Intent intent) {
 		String url = intent.getStringExtra("pingUrl");
 		String email = intent.getStringExtra("email");
 		String password = intent.getStringExtra("password");
@@ -72,12 +79,11 @@ public class GpsService extends Service {
 		PendingIntent pi = PendingIntent.getActivity(this, 0, appIntent, 0);
 		
 		notification.setLatestEventInfo(this, "Ridepilot Mobile", "connected", pi);
-		notification.flags|=Notification.FLAG_NO_CLEAR;
+		notification.flags |= Notification.FLAG_NO_CLEAR;
 		startForeground(66786, notification);
 		
 		thread = new GpsServiceThread(url, email, password);
 		new Thread(thread).start();
-		return START_REDELIVER_INTENT;
 	}
 
 	@Override
@@ -131,7 +137,7 @@ public class GpsService extends Service {
 			this.password = password;
 			active = true;
 			scheduledThreadPoolExecutor = new ScheduledThreadPoolExecutor(1);
-			setStatus("active");
+			setStatus(ACTIVE);
 		}
 
 		public void stop() {
@@ -242,11 +248,7 @@ public class GpsService extends Service {
 		}
 
 		public void run() {
-			new Thread (new Runnable() {
-				public void run() {
-					scheduledThreadPoolExecutor.scheduleAtFixedRate(pingTask, 0, pingInterval, TimeUnit.SECONDS);
-				}
-			} ).start();
+			scheduledThreadPoolExecutor.scheduleAtFixedRate(pingTask, 0, pingInterval, TimeUnit.SECONDS);
 			
 			Looper.prepare();
 			
@@ -259,6 +261,15 @@ public class GpsService extends Service {
 		public void setStatus(String status) {
 			this.status = status;
 			scheduledThreadPoolExecutor.execute(forcePingTask);
+			if (status.equals(INACTIVE)) {
+				scheduledThreadPoolExecutor.shutdown();
+				try {
+					scheduledThreadPoolExecutor.awaitTermination(10 * 60, TimeUnit.SECONDS);
+				} catch (InterruptedException e) {
+					//I guess we're going to shut down anyway, so this is OK
+					Log.d(TAG, "Interrupted while shutting down GpsService", e);
+				}
+			}
 		}
 
 		public String getStatus() {
@@ -294,8 +305,22 @@ public class GpsService extends Service {
 		thread.setStatus(status);
 	}
 
+	public String getStatus() {
+		if (thread == null) {
+			return NOT_STARTED;
+		}
+		return thread.getStatus();
+	}
+
 	public boolean isActive() {
+		if (thread == null) {
+			return false;
+		}
 		return thread.isActive();
+	}
+
+	public String getEmail() {
+		return thread.email;
 	}
 
 }

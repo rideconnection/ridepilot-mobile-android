@@ -67,11 +67,19 @@ public class RCAVL extends Activity implements Configured {
 
 	public int pingInterval = 60;
 
+	private String userEmail;
+
+	private GpsServiceConnection serviceConnection;
+
 	/** Called when the activity is first created. */
 	@Override
 	public void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
-		switchToLogin();
+
+		Intent intent = new Intent(RCAVL.this, GpsService.class);
+		startService(intent);
+		serviceConnection = new GpsServiceConnection();
+		bindService(intent, serviceConnection, 0);
 	}
 
 	private class LoginTask extends AsyncTask<Void, Void, String> {
@@ -147,11 +155,17 @@ public class RCAVL extends Activity implements Configured {
 			intent.putExtra("email", email);
 			intent.putExtra("password", password);
 			intent.putExtra("pingInterval", pingInterval);
+			gpsService.realStart(intent);
+		}
+	}
 
-			startService(intent);
-
-			ServiceConnection serviceConnection = new GpsServiceConnection();
-			bindService(intent, serviceConnection, 0);
+	void setupUI() {
+		if (gpsService == null || gpsService.getStatus().equals(GpsService.INACTIVE) || gpsService.getStatus().equals(GpsService.NOT_STARTED)) {
+			//the service is inactive or will shut down
+			switchToLogin();
+		} else {
+			userEmail = gpsService.getEmail();
+			switchToRunning();
 		}
 	}
 
@@ -162,6 +176,13 @@ public class RCAVL extends Activity implements Configured {
 			LocalBinder binder = (LocalBinder) service;
 			gpsService = binder.getService();
 			gpsService.setActivity(RCAVL.this);
+
+			//this happens a bit after startup, so we need to call a callback to set up the UI
+			runOnUiThread(new Thread() {
+				public void run() {
+					setupUI();
+				}
+			});
 		}
 
 		public void onServiceDisconnected(ComponentName arg0) {
@@ -193,7 +214,7 @@ public class RCAVL extends Activity implements Configured {
 		 */
 		SharedPreferences preferences = getPreferences(MODE_PRIVATE);
 		String emails = preferences.getString("emails", null);
-		String userEmail = emailField.getText().toString();
+		userEmail = emailField.getText().toString();
 		if (emails == null) {
 			emails = userEmail;
 		} else {
@@ -207,7 +228,7 @@ public class RCAVL extends Activity implements Configured {
 		editor.commit();
 
 		toast("Logged in");
-		switchToRunning(userEmail);
+		switchToRunning();
 	}
 
 	private void switchToLogin() {
@@ -254,31 +275,37 @@ public class RCAVL extends Activity implements Configured {
 
 	}
 
-	private void switchToRunning(String email) {
+	private void switchToRunning() {
 		setContentView(R.layout.running);
 
 		TextView userField = (TextView) findViewById(R.id.loggedInAsLabel);
-		userField.setText("Logged in as " + email);
+		userField.setText("Logged in as " + userEmail);
 
 		final Button breakButton = (Button) findViewById(R.id.breakButton);
 
 		breakButton.setOnClickListener(new OnClickListener() {
 
 			public void onClick(View v) {
-				if (gpsService.isActive()) {
-					gpsService.setStatus("break", false);
-					breakButton.setText(R.string.return_from_break);
-				} else {
-					gpsService.setStatus("active", true);
-					breakButton.setText(R.string.take_a_break);
-				}
+				runOnUiThread(new Thread() {
+					public void run() {
+						if (gpsService.isActive()) {
+							gpsService.setStatus(GpsService.BREAK, false);
+							breakButton.setText(R.string.return_from_break);
+						} else {
+							gpsService.setStatus(GpsService.ACTIVE, true);
+							breakButton.setText(R.string.take_a_break);
+						}
+	}
+				});
 			}
 		});
 
 		final Button logoutButton = (Button) findViewById(R.id.logoutButton);
 		logoutButton.setOnClickListener(new OnClickListener() {
 			public void onClick(View v) {
-				gpsService.setStatus("inactive", false);
+				gpsService.setStatus(GpsService.INACTIVE, false);
+				unbindService(serviceConnection);
+				stopService(new Intent(RCAVL.this, GpsService.class));
 				switchToLogin();
 			}
 		});
@@ -290,11 +317,16 @@ public class RCAVL extends Activity implements Configured {
 	}
 
 	public void ping() {
-		TextView pingField = (TextView) findViewById(R.id.lastPingLabel);
-		if (pingField != null) {
-			String now = new SimpleDateFormat("HH:mm:ss").format(new Date());
-			pingField.setText("Last contacted server " + now);
-		}
+		runOnUiThread(new Thread() {
+			public void run() {
+				TextView pingField = (TextView) findViewById(R.id.lastPingLabel);
+				if (pingField != null) {
+					String now = new SimpleDateFormat("HH:mm:ss")
+							.format(new Date());
+					pingField.setText("Last contacted server " + now);
+				}
+			}
+		});
 	}
 
 	/* configuration dialog callbacks */
