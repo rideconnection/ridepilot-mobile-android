@@ -1,41 +1,37 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout
-android:id="@+id/layout"
-android:layout_width="fill_parent"
-android:layout_height="fill_parent"
-android:orientation="vertical"
-xmlns:android="http://schemas.android.com/apk/res/android"
->
-<TextView
-android:id="@+id/loggedInAsLabel"
-android:layout_width="wrap_content"
-android:layout_height="wrap_content"
->
-</TextView>
-<TextView
-android:id="@+id/lastPingLabel"
-android:layout_width="wrap_content"
-android:layout_height="wrap_content"
->
-</TextView>
-<TextView
-android:id="@+id/timeLabel"
-android:layout_width="wrap_content"
-android:layout_height="wrap_content"
->
-</TextView>
-<Button
-android:id="@+id/breakButton"
-android:layout_height="wrap_content"
-android:text="@string/take_a_break"
-android:maxLines="1"
-android:layout_width="150dp">
-</Button>
-<Button
-android:id="@+id/logoutButton"
-android:layout_width="wrap_content"
-android:layout_height="wrap_content"
-android:text="@string/logout"
->
-</Button>
+	android:id="@+id/layout"
+	android:layout_width="fill_parent"
+	android:layout_height="fill_parent"
+	android:orientation="vertical"
+	xmlns:android="http://schemas.android.com/apk/res/android"
+	>
+	<TextView
+		android:id="@+id/loggedInAsLabel"
+		android:layout_width="wrap_content"
+		android:layout_height="wrap_content"
+		/>
+	<TextView
+		android:id="@+id/lastPingLabel"
+		android:layout_width="wrap_content"
+		android:layout_height="wrap_content"
+		/>
+	<TextView
+		android:id="@+id/timeLabel"
+		android:layout_width="wrap_content"
+		android:layout_height="wrap_content"
+		/>
+	<Button
+		android:id="@+id/breakButton"
+		android:layout_height="wrap_content"
+		android:text="@string/take_a_break"
+		android:maxLines="1"
+		android:layout_width="150dp"
+		/>
+	<Button
+		android:id="@+id/logoutButton"
+		android:layout_width="wrap_content"
+		android:layout_height="wrap_content"
+		android:text="@string/logout"
+		/>
 </LinearLayout>
