@@ -71,7 +71,6 @@ public class RCAVL extends Activity implements Configured {
 
 	private GpsServiceConnection serviceConnection;
 
-	/** Called when the activity is first created. */
 	@Override
 	public void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
@@ -83,17 +82,15 @@ public class RCAVL extends Activity implements Configured {
 	}
 
 	private class LoginTask extends AsyncTask<Void, Void, String> {
-		/**
-		 * The system calls this to perform work in a worker thread and delivers
-		 * it the parameters given to AsyncTask.execute()
-		 */
+		
 		protected String doInBackground(Void... params) {
 			// make login request, which really is just a GET request for
 			// the ping URL
 
+			String postUrl = apiRequestUrl + "/device_pool_drivers.json";
+			
 			HttpClient client = HttpUtils.getNewHttpClient();
-			HttpPost request = new HttpPost(apiRequestUrl
-					+ "/device_pool_drivers.json");
+			HttpPost request = new HttpPost(postUrl);
 
 			try {
 				List<NameValuePair> nameValuePairs = new ArrayList<NameValuePair>(
@@ -101,46 +98,49 @@ public class RCAVL extends Activity implements Configured {
 				String email = emailField.getText().toString();
 				String password = passwordField.getText().toString();
 
-				nameValuePairs
-						.add(new BasicNameValuePair("user[email]", email));
-				nameValuePairs.add(new BasicNameValuePair("user[password]",
-						password));
+				nameValuePairs.add(new BasicNameValuePair("user[email]", email));
+				nameValuePairs.add(new BasicNameValuePair("user[password]", password));
 				request.setEntity(new UrlEncodedFormEntity(nameValuePairs));
+				
+				// This should not go into production, otherwise anyone looking at the device logs can see the password 
+				// Log.i(TAG, "Hitting URL " + postUrl + " with " + HttpUtils.pairsToString(nameValuePairs));
+				
 				HttpResponse response = client.execute(request);
 				HttpEntity entity = response.getEntity();
+				
 				String json = EntityUtils.toString(entity);
 				if (!json.startsWith("{")) {
 					// not really json
 					toast("Got an unexpected response from the server.  Are you sure you have the URL right?");
 					return null;
 				}
+				
 				JSONTokener tokener = new JSONTokener(json);
 				JSONObject data = (JSONObject) tokener.nextValue();
+				
 				Object url = data.get("resource_url");
-				if (url instanceof String) {
+				if (url instanceof String) 
 					return (String) url;
-				}
-				toast("Bad response from server: " + url);
+				else
+					toast("Bad response from server: " + url);
+				
 			} catch (ClientProtocolException e) {
-				Log.e(TAG, "exception logging in" + e);
+				Log.e(TAG, "exception logging in", e);
 				toast("Error logging in.  Try again.");
 			} catch (IOException e) {
-				Log.e(TAG, "exception logging in" + e);
+				Log.e(TAG, "exception logging in", e);
 				toast("Error logging in.  Try again.");
 			} catch (JSONException e) {
-				Log.e(TAG, "exception logging in" + e);
+				Log.e(TAG, "exception logging in", e);
 				toast("Error logging in.  Check your password and try again.");
 			} catch (Exception e) {
-				Log.e(TAG, "exception logging in" + e);
-				toast("Error logging in.  " + e);
+				Log.e(TAG, "exception logging in", e);
+				toast("Error logging in.");
 			}
+			
 			return null;
 		}
 
-		/**
-		 * The system calls this to perform work in the UI thread and delivers
-		 * the result from doInBackground()
-		 */
 		protected void onPostExecute(String url) {
 			if (url == null) {
 				spinner.setIndeterminate(false);

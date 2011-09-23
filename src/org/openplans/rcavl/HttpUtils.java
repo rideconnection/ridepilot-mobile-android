@@ -23,12 +23,14 @@ import java.security.NoSuchAlgorithmException;
 import java.security.UnrecoverableKeyException;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
+import java.util.List;
 
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
 
 import org.apache.http.HttpVersion;
+import org.apache.http.NameValuePair;
 import org.apache.http.client.HttpClient;
 import org.apache.http.conn.ClientConnectionManager;
 import org.apache.http.conn.scheme.PlainSocketFactory;
@@ -98,5 +100,12 @@ public class HttpUtils {
 	    } catch (Exception e) {
 	        return new DefaultHttpClient();
 	    }
+	}
+	
+	public static String pairsToString(List<NameValuePair> pairs) {
+		StringBuilder sb = new StringBuilder();
+		for (int i=0; i<pairs.size(); i++)
+			sb.append(pairs.get(i).toString());
+		return sb.toString();
 	}
 }

@@ -176,7 +176,9 @@ public class GpsService extends Service {
 						nameValuePairs.add(new BasicNameValuePair(
 								"device_pool_driver[lng]",
 								Double.toString(location.getLongitude())));
-					}
+					} else
+						Log.i(TAG, "Missing location on ping");
+					
 					nameValuePairs.add(new BasicNameValuePair(
 							"device_pool_driver[status]",
 							pingStatus));
@@ -186,6 +188,8 @@ public class GpsService extends Service {
 
 					request.setEntity(new UrlEncodedFormEntity(
 							nameValuePairs));
+					
+					Log.i(TAG, "Posting to URL " + url + " with " + HttpUtils.pairsToString(nameValuePairs));
 
 					HttpResponse response = client.execute(request);
 
