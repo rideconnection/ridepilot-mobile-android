@@ -316,7 +316,6 @@ public class RCAVL extends Activity implements Configured {
 		logoutButton.setOnClickListener(new OnClickListener() {
 			public void onClick(View v) {
 				gpsService.setStatus(GpsService.INACTIVE, false);
-				unbindService(serviceConnection);
 				stopService(new Intent(RCAVL.this, GpsService.class));
 				switchToLogin();
 			}
@@ -326,6 +325,7 @@ public class RCAVL extends Activity implements Configured {
 	@Override
 	public void onDestroy() {
 		super.onDestroy();
+		unbindService(serviceConnection);
 	}
 
 	public void ping() {
