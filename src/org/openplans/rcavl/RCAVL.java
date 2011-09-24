@@ -289,6 +289,11 @@ public class RCAVL extends Activity implements Configured {
 		userField.setText("Logged in as " + userEmail);
 
 		final Button breakButton = (Button) findViewById(R.id.breakButton);
+		if (gpsService.getStatus().equals(GpsService.BREAK))
+			breakButton.setText(R.string.return_from_break);
+		else
+			breakButton.setText(R.string.take_a_break);
+			
 
 		breakButton.setOnClickListener(new OnClickListener() {
 
