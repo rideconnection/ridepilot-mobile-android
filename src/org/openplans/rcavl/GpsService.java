@@ -94,8 +94,7 @@ public class GpsService extends Service {
 
 	public class LocalBinder extends Binder {
 		GpsService getService() {
-			// Return this instance of LocalService so clients can call public
-			// methods
+			// Return this instance of LocalService so clients can call public methods
 			return GpsService.this;
 		}
 	}
@@ -108,7 +107,7 @@ public class GpsService extends Service {
 
 		private final SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 
-		private final String TAG = GpsServiceThread.class.toString();
+		private final String TAG = "GpsServiceThread";
 		private String url;
 		private String password;
 		private String email;
@@ -145,7 +144,9 @@ public class GpsService extends Service {
 		}
 
 		public void onLocationChanged(Location location) {
+			Log.i(TAG, "Got new location: " + location.getLatitude() + "," + location.getLongitude());
 			if (!active) {
+				Log.i(TAG, "But the GpsService is inactive, so not storing it.");
 				return;
 			}
 			lastLocation = location;
@@ -158,7 +159,7 @@ public class GpsService extends Service {
 			
 			localDate = dateFormat.format(new Date());
 
-			Location location = lastLocation;
+			
 			for (int i = 0; i < MAX_RETRIES || keepTrying; ++i) {
 				HttpClient client = HttpUtils.getNewHttpClient();
 				HttpPost request = new HttpPost(url);
@@ -169,6 +170,7 @@ public class GpsService extends Service {
 					nameValuePairs.add(new BasicNameValuePair(
 							"user[password]", password));
 
+					Location location = lastLocation;
 					if (location != null) {
 						nameValuePairs.add(new BasicNameValuePair(
 								"device_pool_driver[lat]",
@@ -206,13 +208,13 @@ public class GpsService extends Service {
 						Log.e(TAG, "json was " + json);
 					}
 				} catch (ClientProtocolException e) {
-					Log.e(TAG, "exception sending ping " + e);
+					Log.e(TAG, "exception sending ping", e);
 				} catch (IOException e) {
-					Log.e(TAG, "exception sending ping " + e);
+					Log.e(TAG, "exception sending ping", e);
 				} catch (JSONException e) {
-					Log.e(TAG, "bad json from server " + e);
+					Log.e(TAG, "bad json from server", e);
 				} catch (Exception e) {
-					Log.e(TAG, "some other problem " + e);
+					Log.e(TAG, "some other problem", e);
 				}
 				try {
 					if (i >= MAX_RETRIES && keepTrying) {
@@ -257,6 +259,8 @@ public class GpsService extends Service {
 			Looper.prepare();
 			
 			locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
+			
+			Log.i(TAG, "Requesting location updates with a minTime of 10s and min distance of 10m");
 			locationManager.requestLocationUpdates(
 					LocationManager.GPS_PROVIDER, 1000, 10, this);
 
@@ -266,6 +270,7 @@ public class GpsService extends Service {
 			this.status = status;
 			scheduledThreadPoolExecutor.execute(forcePingTask);
 			if (status.equals(INACTIVE)) {
+				Log.i(TAG, "Shutting down thread, service marked as inactive");
 				scheduledThreadPoolExecutor.shutdown();
 				try {
 					scheduledThreadPoolExecutor.awaitTermination(10 * 60, TimeUnit.SECONDS);
@@ -283,6 +288,7 @@ public class GpsService extends Service {
 		public void setActive(boolean active) {
 			this.active = active;
 			if (active) {
+				Log.i(TAG, "Requesting location updates with a minTime of 0s and min distance of 0m");
 				locationManager.requestLocationUpdates(
 						LocationManager.GPS_PROVIDER, 0, 0, this);
 			} else {
