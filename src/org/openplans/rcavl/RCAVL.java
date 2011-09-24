@@ -56,7 +56,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 public class RCAVL extends Activity implements Configured {
-	String TAG = RCAVL.class.toString();
+	String TAG = "RCAVL";
 
 	public String apiRequestUrl = "https://apps.rideconnection.org/ridepilot";
 
@@ -93,17 +93,13 @@ public class RCAVL extends Activity implements Configured {
 			HttpPost request = new HttpPost(postUrl);
 
 			try {
-				List<NameValuePair> nameValuePairs = new ArrayList<NameValuePair>(
-						2);
+				List<NameValuePair> nameValuePairs = new ArrayList<NameValuePair>(2);
 				String email = emailField.getText().toString();
 				String password = passwordField.getText().toString();
 
 				nameValuePairs.add(new BasicNameValuePair("user[email]", email));
 				nameValuePairs.add(new BasicNameValuePair("user[password]", password));
 				request.setEntity(new UrlEncodedFormEntity(nameValuePairs));
-				
-				// This should not go into production, otherwise anyone looking at the device logs can see the password 
-				// Log.i(TAG, "Hitting URL " + postUrl + " with " + HttpUtils.pairsToString(nameValuePairs));
 				
 				HttpResponse response = client.execute(request);
 				HttpEntity entity = response.getEntity();
@@ -167,6 +163,17 @@ public class RCAVL extends Activity implements Configured {
 			userEmail = gpsService.getEmail();
 			switchToRunning();
 		}
+	}
+	
+	// this is called from the GpsService after its thread has been initialized and started.
+	// The location update request has to be started from the UI thread (I am not sure why),
+	// or no location updates are delivered to the GpsServiceThread instance!
+	public void startLocation() {
+		runOnUiThread(new Thread() {
+			public void run() {
+				gpsService.startReceivingLocation();
+			}
+		});
 	}
 
 	class GpsServiceConnection implements ServiceConnection {

@@ -233,15 +233,15 @@ public class GpsService extends Service {
 		}
 
 		public void onProviderDisabled(String provider) {
-			Log.d(TAG, "provider disabled " + provider);
+			//Log.i(TAG, "provider disabled " + provider);
 		}
 
 		public void onProviderEnabled(String provider) {
-			Log.d(TAG, "provider enabled " + provider);
+			//Log.i(TAG, "provider enabled " + provider);
 		}
 
 		public void onStatusChanged(String provider, int status, Bundle extras) {
-			Log.d(TAG, "on status changed " + provider + " status = " + status);
+			//Log.i(TAG, "on status changed " + provider + " status = " + status);
 		}
 
 		public void toast(String message) {
@@ -260,10 +260,8 @@ public class GpsService extends Service {
 			
 			locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
 			
-			Log.i(TAG, "Requesting location updates with a minTime of 10s and min distance of 10m");
-			locationManager.requestLocationUpdates(
-					LocationManager.GPS_PROVIDER, 1000, 10, this);
-
+			// initialize from the activity, on the UI thread
+			activity.startLocation();
 		}
 
 		public void setStatus(String status) {
@@ -287,13 +285,20 @@ public class GpsService extends Service {
 
 		public void setActive(boolean active) {
 			this.active = active;
-			if (active) {
-				Log.i(TAG, "Requesting location updates with a minTime of 0s and min distance of 0m");
-				locationManager.requestLocationUpdates(
-						LocationManager.GPS_PROVIDER, 0, 0, this);
-			} else {
-				locationManager.removeUpdates(this);
-			}
+			if (active)
+				startReceivingLocation();
+			else
+				stopReceivingLocation();
+		}
+		
+		public void startReceivingLocation() {
+			Log.i(TAG, "Requesting location updates with a minTime of 0s and min distance of 0m");
+			locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, this);
+		}
+		
+		public void stopReceivingLocation() {
+			Log.i(TAG, "No longer requesting location updates");
+			locationManager.removeUpdates(this);
 		}
 
 		public boolean isActive() {
@@ -313,6 +318,10 @@ public class GpsService extends Service {
 	public void setStatus(String status, boolean active) {
 		thread.setActive(active);
 		thread.setStatus(status);
+	}
+	
+	public void startReceivingLocation() {
+		thread.startReceivingLocation();
 	}
 
 	public String getStatus() {
