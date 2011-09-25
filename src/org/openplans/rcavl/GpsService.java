@@ -208,9 +208,9 @@ public class GpsService extends Service {
 						Log.e(TAG, "json was " + json);
 					}
 				} catch (ClientProtocolException e) {
-					Log.e(TAG, "exception sending ping", e);
+					Log.e(TAG, "exception sending ping, try #" + i, e);
 				} catch (IOException e) {
-					Log.e(TAG, "exception sending ping", e);
+					Log.e(TAG, "exception sending ping, try #" + i, e);
 				} catch (JSONException e) {
 					Log.e(TAG, "bad json from server", e);
 				} catch (Exception e) {
@@ -223,6 +223,7 @@ public class GpsService extends Service {
 						Thread.sleep(SHORT_RETRY_TIME);
 					}
 				} catch (InterruptedException e) {
+					Log.e(TAG, "Got interrupted", e);
 					Thread.currentThread().interrupt();
 				}
 			}
