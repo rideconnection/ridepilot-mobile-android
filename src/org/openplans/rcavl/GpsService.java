@@ -100,11 +100,6 @@ public class GpsService extends Service {
 	}
 	
 	class GpsServiceThread implements LocationListener, Runnable {
-
-		private static final int MAX_RETRIES = 5;
-		private static final long SHORT_RETRY_TIME = 1000 * 10; //10 seconds
-		private static final long LONG_RETRY_TIME = 1000 * 60; // 1 minute
-
 		private final SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 
 		private final String TAG = "GpsServiceThread";
@@ -120,14 +115,12 @@ public class GpsService extends Service {
 		
 		private Runnable pingTask = new Runnable() {
 	        public void run() {
-	        	if (active) {
-	        		ping(false);
-	        	}
+	        	if (active) ping();
 	        }
 	    };
 	    private Runnable forcePingTask = new Runnable() {
 	        public void run() {
-	        	ping(true);
+	        	ping();
 	        }
 	    };
 		public GpsServiceThread(String url, String email, String password) {
@@ -144,93 +137,78 @@ public class GpsService extends Service {
 		}
 
 		public void onLocationChanged(Location location) {
-			Log.i(TAG, "Got new location: " + location.getLatitude() + "," + location.getLongitude());
+			//Log.i(TAG, "Got new location: " + location.getLatitude() + "," + location.getLongitude());
 			if (!active) {
-				Log.i(TAG, "But the GpsService is inactive, so not storing it.");
+				//Log.i(TAG, "But the GpsService is inactive, so not storing it.");
 				return;
 			}
 			lastLocation = location;
 		}
 
-		private void ping(boolean keepTrying) {
+		private void ping() {
 			String pingStatus = this.status;
 
 			String localDate;
 			
 			localDate = dateFormat.format(new Date());
 
-			
-			for (int i = 0; i < MAX_RETRIES || keepTrying; ++i) {
-				HttpClient client = HttpUtils.getNewHttpClient();
-				HttpPost request = new HttpPost(url);
-				try {
-					List<NameValuePair> nameValuePairs = new ArrayList<NameValuePair>(6);
+			HttpClient client = HttpUtils.getNewHttpClient();
+			HttpPost request = new HttpPost(url);
+			try {
+				List<NameValuePair> nameValuePairs = new ArrayList<NameValuePair>(6);
+				nameValuePairs.add(new BasicNameValuePair(
+						"user[email]", email));
+				nameValuePairs.add(new BasicNameValuePair(
+						"user[password]", password));
+
+				Location location = lastLocation;
+				if (location != null) {
 					nameValuePairs.add(new BasicNameValuePair(
-							"user[email]", email));
+							"device_pool_driver[lat]",
+							Double.toString(location.getLatitude())));
 					nameValuePairs.add(new BasicNameValuePair(
-							"user[password]", password));
+							"device_pool_driver[lng]",
+							Double.toString(location.getLongitude())));
+				} else
+					Log.i(TAG, "Missing location on ping");
+				
+				nameValuePairs.add(new BasicNameValuePair(
+						"device_pool_driver[status]",
+						pingStatus));
 
-					Location location = lastLocation;
-					if (location != null) {
-						nameValuePairs.add(new BasicNameValuePair(
-								"device_pool_driver[lat]",
-								Double.toString(location.getLatitude())));
-						nameValuePairs.add(new BasicNameValuePair(
-								"device_pool_driver[lng]",
-								Double.toString(location.getLongitude())));
-					} else
-						Log.i(TAG, "Missing location on ping");
-					
-					nameValuePairs.add(new BasicNameValuePair(
-							"device_pool_driver[status]",
-							pingStatus));
+				nameValuePairs.add(new BasicNameValuePair(
+						"device_pool_driver[posted_at]", localDate));
 
-					nameValuePairs.add(new BasicNameValuePair(
-							"device_pool_driver[posted_at]", localDate));
+				request.setEntity(new UrlEncodedFormEntity(
+						nameValuePairs));
+				
+				Log.i(TAG, "Posting to URL " + url + " with " + HttpUtils.pairsToString(nameValuePairs));
 
-					request.setEntity(new UrlEncodedFormEntity(
-							nameValuePairs));
-					
-					Log.i(TAG, "Posting to URL " + url + " with " + HttpUtils.pairsToString(nameValuePairs));
+				HttpResponse response = client.execute(request);
 
-					HttpResponse response = client.execute(request);
-
-					if (response.getStatusLine().getStatusCode() == 200) {
-						HttpEntity entity = response.getEntity();
-						String json = EntityUtils.toString(entity);
-						JSONTokener tokener = new JSONTokener(json);
-						JSONObject data = (JSONObject) tokener.nextValue();
-						if (data.has("device_pool_driver")) {
-							activity.ping();
-							return; //success!
-						}
-						Log.e(TAG, "data was " + data);
-						Log.e(TAG, "json was " + json);
+				if (response.getStatusLine().getStatusCode() == 200) {
+					HttpEntity entity = response.getEntity();
+					String json = EntityUtils.toString(entity);
+					JSONTokener tokener = new JSONTokener(json);
+					JSONObject data = (JSONObject) tokener.nextValue();
+					if (data.has("device_pool_driver")) {
+						activity.ping();
+						return; //success!
 					}
-				} catch (ClientProtocolException e) {
-					Log.e(TAG, "exception sending ping, try #" + i, e);
-				} catch (IOException e) {
-					Log.e(TAG, "exception sending ping, try #" + i, e);
-				} catch (JSONException e) {
-					Log.e(TAG, "bad json from server", e);
-				} catch (Exception e) {
-					Log.e(TAG, "some other problem", e);
+					Log.e(TAG, "data was " + data);
+					Log.e(TAG, "json was " + json);
 				}
-				try {
-					if (i >= MAX_RETRIES && keepTrying) {
-						Thread.sleep(LONG_RETRY_TIME);
-					} else {
-						Thread.sleep(SHORT_RETRY_TIME);
-					}
-				} catch (InterruptedException e) {
-					Log.e(TAG, "Got interrupted", e);
-					Thread.currentThread().interrupt();
-				}
+			} catch (ClientProtocolException e) {
+				Log.e(TAG, "protocol exception sending ping", e);
+			} catch (IOException e) {
+				Log.e(TAG, "IO exception sending ping", e);
+			} catch (JSONException e) {
+				Log.e(TAG, "bad json from server while pinging", e);
+			} catch (Exception e) {
+				Log.e(TAG, "some other problem sending ping", e);
 			}
-			Log.e(TAG, "ran out of retries contacting server");
-			activity.ping();
+			
 			return;
-
 		}
 
 		public void onProviderDisabled(String provider) {
