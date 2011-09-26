@@ -182,7 +182,8 @@ public class GpsService extends Service {
 				request.setEntity(new UrlEncodedFormEntity(
 						nameValuePairs));
 				
-				Log.i(TAG, "Posting to URL " + url + " with " + HttpUtils.pairsToString(nameValuePairs));
+				// beware, uncommenting this will show the password in the device logs! 
+				// Log.i(TAG, "Posting to URL " + url + " with " + HttpUtils.pairsToString(nameValuePairs));
 
 				HttpResponse response = client.execute(request);
 
@@ -249,12 +250,6 @@ public class GpsService extends Service {
 			if (status.equals(INACTIVE)) {
 				Log.i(TAG, "Shutting down thread, service marked as inactive");
 				scheduledThreadPoolExecutor.shutdown();
-				try {
-					scheduledThreadPoolExecutor.awaitTermination(10 * 60, TimeUnit.SECONDS);
-				} catch (InterruptedException e) {
-					//I guess we're going to shut down anyway, so this is OK
-					Log.d(TAG, "Interrupted while shutting down GpsService", e);
-				}
 			}
 		}
 
