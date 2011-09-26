@@ -104,8 +104,10 @@ public class HttpUtils {
 	
 	public static String pairsToString(List<NameValuePair> pairs) {
 		StringBuilder sb = new StringBuilder();
-		for (int i=0; i<pairs.size(); i++)
+		for (int i=0; i<pairs.size(); i++) {
 			sb.append(pairs.get(i).toString());
+			sb.append("&");
+		}
 		return sb.toString();
 	}
 }
