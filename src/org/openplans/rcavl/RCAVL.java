@@ -33,7 +33,7 @@ import org.json.JSONException;
 import org.json.JSONObject;
 import org.json.JSONTokener;
 import org.openplans.rcavl.ConfigDialog.Configured;
-import org.openplans.rcavl.GpsService.LocalBinder;
+import org.openplans.rcavl.LocationService.LocalBinder;
 
 import android.app.Activity;
 import android.content.ComponentName;
@@ -61,7 +61,7 @@ public class RCAVL extends Activity implements Configured {
 	public String apiRequestUrl = "https://apps.rideconnection.org/ridepilot";
 
 	private ProgressBar spinner;
-	public GpsService gpsService;
+	public LocationService locationService;
 	private AutoCompleteTextView emailField;
 	private TextView passwordField;
 
@@ -69,15 +69,15 @@ public class RCAVL extends Activity implements Configured {
 
 	private String userEmail;
 
-	private GpsServiceConnection serviceConnection;
+	private LocationServiceConnection serviceConnection;
 
 	@Override
 	public void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 
-		Intent intent = new Intent(RCAVL.this, GpsService.class);
+		Intent intent = new Intent(RCAVL.this, LocationService.class);
 		startService(intent);
-		serviceConnection = new GpsServiceConnection();
+		serviceConnection = new LocationServiceConnection();
 		bindService(intent, serviceConnection, 0);
 	}
 
@@ -144,45 +144,45 @@ public class RCAVL extends Activity implements Configured {
 				return;
 			}
 			loggedIn();
-			Intent intent = new Intent(RCAVL.this, GpsService.class);
+			Intent intent = new Intent(RCAVL.this, LocationService.class);
 			intent.putExtra("pingUrl", url);
 			String email = emailField.getText().toString();
 			String password = passwordField.getText().toString();
 			intent.putExtra("email", email);
 			intent.putExtra("password", password);
 			intent.putExtra("pingInterval", pingInterval);
-			gpsService.realStart(intent);
+			locationService.realStart(intent);
 		}
 	}
 
 	void setupUI() {
-		if (gpsService == null || gpsService.getStatus().equals(GpsService.INACTIVE) || gpsService.getStatus().equals(GpsService.NOT_STARTED)) {
+		if (locationService == null || locationService.getStatus().equals(LocationService.INACTIVE) || locationService.getStatus().equals(LocationService.NOT_STARTED)) {
 			//the service is inactive or will shut down
 			switchToLogin();
 		} else {
-			userEmail = gpsService.getEmail();
+			userEmail = locationService.getEmail();
 			switchToRunning();
 		}
 	}
 	
-	// this is called from the GpsService after its thread has been initialized and started.
+	// this is called from the LocationService after its thread has been initialized and started.
 	// The location update request has to be started from the UI thread (I am not sure why),
-	// or no location updates are delivered to the GpsServiceThread instance!
+	// or no location updates are delivered to the LocationServiceThread instance!
 	public void startLocation() {
 		runOnUiThread(new Thread() {
 			public void run() {
-				gpsService.startReceivingLocation();
+				locationService.startReceivingLocation();
 			}
 		});
 	}
 
-	class GpsServiceConnection implements ServiceConnection {
+	class LocationServiceConnection implements ServiceConnection {
 		public void onServiceConnected(ComponentName className, IBinder service) {
 			// We've bound to LocalService, cast the IBinder and get
 			// LocalService instance
 			LocalBinder binder = (LocalBinder) service;
-			gpsService = binder.getService();
-			gpsService.setActivity(RCAVL.this);
+			locationService = binder.getService();
+			locationService.setActivity(RCAVL.this);
 
 			//this happens a bit after startup, so we need to call a callback to set up the UI
 			runOnUiThread(new Thread() {
@@ -194,7 +194,7 @@ public class RCAVL extends Activity implements Configured {
 
 		public void onServiceDisconnected(ComponentName arg0) {
 			// notify the user
-			toast("GPS service disconnected");
+			toast("Location service disconnected");
 		}
 
 	}
@@ -289,7 +289,7 @@ public class RCAVL extends Activity implements Configured {
 		userField.setText("Logged in as " + userEmail);
 
 		final Button breakButton = (Button) findViewById(R.id.breakButton);
-		if (gpsService.getStatus().equals(GpsService.BREAK))
+		if (locationService.getStatus().equals(LocationService.BREAK))
 			breakButton.setText(R.string.return_from_break);
 		else
 			breakButton.setText(R.string.take_a_break);
@@ -300,11 +300,11 @@ public class RCAVL extends Activity implements Configured {
 			public void onClick(View v) {
 				runOnUiThread(new Thread() {
 					public void run() {
-						if (gpsService.isActive()) {
-							gpsService.setStatus(GpsService.BREAK, false);
+						if (locationService.isActive()) {
+							locationService.setStatus(LocationService.BREAK, false);
 							breakButton.setText(R.string.return_from_break);
 						} else {
-							gpsService.setStatus(GpsService.ACTIVE, true);
+							locationService.setStatus(LocationService.ACTIVE, true);
 							breakButton.setText(R.string.take_a_break);
 						}
 	}
@@ -315,8 +315,8 @@ public class RCAVL extends Activity implements Configured {
 		final Button logoutButton = (Button) findViewById(R.id.logoutButton);
 		logoutButton.setOnClickListener(new OnClickListener() {
 			public void onClick(View v) {
-				gpsService.setStatus(GpsService.INACTIVE, false);
-				stopService(new Intent(RCAVL.this, GpsService.class));
+				locationService.setStatus(LocationService.INACTIVE, false);
+				stopService(new Intent(RCAVL.this, LocationService.class));
 				switchToLogin();
 			}
 		});

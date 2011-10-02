@@ -48,13 +48,13 @@ import android.os.IBinder;
 import android.os.Looper;
 import android.util.Log;
 
-public class GpsService extends Service {
+public class LocationService extends Service {
 
 	public static final String INACTIVE = "inactive";
 	public static final String BREAK = "break";
 	public static final String ACTIVE = "active";
 	public static final String NOT_STARTED = "not started";
-	private GpsServiceThread thread;
+	private LocationServiceThread thread;
 	private LocalBinder binder = new LocalBinder();
 	private RCAVL activity;
 	private int pingInterval;
@@ -82,7 +82,7 @@ public class GpsService extends Service {
 		notification.flags |= Notification.FLAG_NO_CLEAR;
 		startForeground(66786, notification);
 		
-		thread = new GpsServiceThread(url, email, password);
+		thread = new LocationServiceThread(url, email, password);
 		new Thread(thread).start();
 	}
 
@@ -93,16 +93,16 @@ public class GpsService extends Service {
 	}
 
 	public class LocalBinder extends Binder {
-		GpsService getService() {
+		LocationService getService() {
 			// Return this instance of LocalService so clients can call public methods
-			return GpsService.this;
+			return LocationService.this;
 		}
 	}
 	
-	class GpsServiceThread implements LocationListener, Runnable {
+	class LocationServiceThread implements LocationListener, Runnable {
 		private final SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 
-		private final String TAG = "GpsServiceThread";
+		private final String TAG = "LocationServiceThread";
 		private String url;
 		private String password;
 		private String email;
@@ -123,7 +123,7 @@ public class GpsService extends Service {
 	        	ping();
 	        }
 	    };
-		public GpsServiceThread(String url, String email, String password) {
+		public LocationServiceThread(String url, String email, String password) {
 			this.url = url;
 			this.email = email;
 			this.password = password;
@@ -139,7 +139,7 @@ public class GpsService extends Service {
 		public void onLocationChanged(Location location) {
 			//Log.i(TAG, "Got new location: " + location.getLatitude() + "," + location.getLongitude());
 			if (!active) {
-				//Log.i(TAG, "But the GpsService is inactive, so not storing it.");
+				//Log.i(TAG, "But the LocationService is inactive, so not storing it.");
 				return;
 			}
 			lastLocation = location;

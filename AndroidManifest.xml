@@ -18,10 +18,9 @@
 				<category android:name="android.intent.category.LAUNCHER" />
 			</intent-filter>
 		</activity>
-		<service android:name="GpsService">
+		<service android:name=".LocationService">
 			<intent-filter>
-				<action
-					android:name="org.openplans.rcavl.GpsService" />
+				<action android:name="org.openplans.rcavl.LocationService" />
 			</intent-filter>
 		</service>
 
