@@ -17,7 +17,10 @@ import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
@@ -109,6 +112,7 @@ public class LocationService extends Service {
 		private String status;
 		private volatile boolean active;
 		private Location lastLocation;
+		private Map<String,Location> lastLocations = new HashMap<String,Location>();
 		private LocationManager locationManager;
 
 		private ScheduledThreadPoolExecutor scheduledThreadPoolExecutor;
@@ -137,12 +141,13 @@ public class LocationService extends Service {
 		}
 
 		public void onLocationChanged(Location location) {
-			//Log.i(TAG, "Got new location: " + location.getLatitude() + "," + location.getLongitude());
+			// Log.i(TAG, "[" + location.getProvider() + "](" + location.getLatitude() + "," + location.getLongitude() + ") accuracy: " + location.getAccuracy());
 			if (!active) {
 				//Log.i(TAG, "But the LocationService is inactive, so not storing it.");
 				return;
 			}
 			lastLocation = location;
+			lastLocations.put(location.getProvider(), location);
 		}
 
 		private void ping() {
@@ -171,6 +176,31 @@ public class LocationService extends Service {
 							Double.toString(location.getLongitude())));
 				} else
 					Log.i(TAG, "Missing location on ping");
+				
+				// append all known locations at this time, for server reporting
+				Iterator<String> iter = lastLocations.keySet().iterator();
+				while (iter.hasNext()) {
+					String provider = iter.next();
+					Location oneLocation = lastLocations.get(provider);
+					String prefix = "location[" + provider + "]";
+					
+					
+					nameValuePairs.add(new BasicNameValuePair(
+							prefix + "[lat]",
+							Double.toString(location.getLatitude())));
+					
+					nameValuePairs.add(new BasicNameValuePair(
+							prefix + "[lng]",
+							Double.toString(location.getLongitude())));
+					
+					nameValuePairs.add(new BasicNameValuePair(
+							prefix + "[accuracy]",
+							Double.toString(location.getAccuracy())));
+					
+					nameValuePairs.add(new BasicNameValuePair(
+							prefix + "[time]",
+							dateFormat.format(new Date(oneLocation.getTime()))));
+				}
 				
 				nameValuePairs.add(new BasicNameValuePair(
 						"device_pool_driver[status]",
@@ -268,6 +298,7 @@ public class LocationService extends Service {
 		public void startReceivingLocation() {
 			Log.i(TAG, "Requesting location updates with a minTime of 0s and min distance of 0m");
 			locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, this);
+			locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 0, 0, this);
 		}
 		
 		public void stopReceivingLocation() {
